@@ -1,0 +1,13 @@
+theme = "ame"
+
+[editor]
+gutters = []
+#gutters = ["diagnostics", "spacer", "line-numbers", "spacer", "diff"]
+#gutters = ["diagnostics", "diff"]
+color-modes = true
+true-color = true
+
+[editor.cursor-shape]
+insert = "bar"
+normal = "block"
+select = "underline"

@@ -1,0 +1,2 @@
+sys-kernel/gentoo-kernel* ~amd64
+virtual/dist-kernel ~amd64

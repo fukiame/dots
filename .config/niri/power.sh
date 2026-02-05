@@ -28,7 +28,10 @@ case "$e" in
 		swaylock -f
 		;;
 	screenoff)
-		sh ~/.config/sway/screenoff.sh
+    swayidle timeout 1 'niri msg action power-off-monitors' &
+    swaylock
+    kill -TERM $!
+    wait
 		;;
 	*)
 		:

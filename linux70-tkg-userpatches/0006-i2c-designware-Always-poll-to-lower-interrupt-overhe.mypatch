@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sultan Alsawaf <sultan@kerneltoast.com>
+Date: Tue, 26 Aug 2025 22:23:37 -0700
+Subject: [PATCH] i2c: designware: Always poll to lower interrupt overhead and
+ save energy
+
+On a laptop with an i9-13900H (Asus Zenbook UX6404), resting a finger on
+the 140 Hz touchpad produces thousands of i2c interrupts per second,
+thereby preventing the CPU from entering any package-level C-states. As a
+result, the lost package C-state time causes the package power to skyrocket
+to 8 W, from a mere 0.5 W before touching the touchpad.
+
+By busy polling for i2c transaction completion instead of using an
+interrupt, power consumption during the above scenario improves
+significantly, with package power measuring at 3 W for a total of 5 W of
+savings.
+
+Therefore, always poll for better energy efficiency.
+
+Note that on AMD it is better to keep the usleep_range() in the poll loop
+in i2c_dw_wait_transfer(), whereas on Intel it is more energy efficient to
+omit it.
+
+Signed-off-by: Sultan Alsawaf <sultan@kerneltoast.com>
+
+diff --git a/drivers/i2c/busses/i2c-designware-common.c b/drivers/i2c/busses/i2c-designware-common.c
+index 4dc57fd561703bc12a0c40889841571fd2943e70..175391c09b28f46ad644584778274fb37a63b639 100644
+--- a/drivers/i2c/busses/i2c-designware-common.c
++++ b/drivers/i2c/busses/i2c-designware-common.c
+@@ -884,6 +884,9 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
+ 
+ 	device_set_node(&dev->adapter.dev, dev_fwnode(dev->dev));
+ 
++	/* Always poll since it's more energy efficient than the spammy IRQ */
++	dev->flags |= ACCESS_POLLING;
++
+ 	ret = i2c_dw_init_regmap(dev);
+ 	if (ret)
+ 		return ret;
+diff --git a/drivers/i2c/busses/i2c-designware-master.c b/drivers/i2c/busses/i2c-designware-master.c
+index de929b91d5ead396c2817cbaf0de6d246967061b..7ef9c190f4f8510f0e0b387730a83de83e087085 100644
+--- a/drivers/i2c/busses/i2c-designware-master.c
++++ b/drivers/i2c/busses/i2c-designware-master.c
+@@ -715,6 +715,11 @@ irqreturn_t i2c_dw_isr_master(struct dw_i2c_dev *dev)
+ 
+ static int i2c_dw_wait_transfer(struct dw_i2c_dev *dev)
+ {
++	/*
++	 * It saves more energy on Intel to omit the usleep_range(). This is not
++	 * the case on AMD.
++	 */
++	const bool no_sleep = boot_cpu_data.x86_vendor == X86_VENDOR_INTEL;
+ 	unsigned long timeout = dev->adapter.timeout;
+ 	unsigned int stat;
+ 	int ret;
+@@ -731,7 +736,7 @@ static int i2c_dw_wait_transfer(struct dw_i2c_dev *dev)
+ 			stat = i2c_dw_read_clear_intrbits(dev);
+ 			if (stat)
+ 				i2c_dw_process_transfer(dev, stat);
+-			else
++			else if (!no_sleep)
+ 				/* Try save some power */
+ 				usleep_range(3, 25);
+ 		} while (time_before(jiffies, timeout));

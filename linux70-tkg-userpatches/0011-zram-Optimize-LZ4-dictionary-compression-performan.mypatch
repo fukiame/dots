@@ -1,7 +1,10 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: gao xu <gaoxu2@honor.com>
-Date: Tue, 10 Mar 2026 02:54:20 +0000
+Date: Fri, 13 Mar 2026 02:41:14 +0000
 Subject: [PATCH] zram: Optimize LZ4 dictionary compression performance
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 
 Calling `LZ4_loadDict()` repeatedly in Zram causes significant overhead
 due to its internal dictionary pre-processing. This commit introduces a
@@ -9,124 +12,113 @@ template stream mechanism to pre-process the dictionary only once when
 the dictionary is initially set or modified. It then efficiently copies
 this state for subsequent compressions.
 
-This optimization improves LZ4 dictionary compression performance by
-over 50% in Zram I/O tests.
+Verification Test Items:
+Test Platform: android16-6.12
+1. Collect Anonymous Page Dataset
+1) Apply the following patch:
+static bool zram_meta_alloc(struct zram *zram, u64 disksize)
+	if (!huge_class_size)
+-		huge_class_size = zs_huge_class_size(zram->mem_pool);
++		huge_class_size = 0;
+2）Install multiple apps and monkey testing until SwapFree is close to 0.
+3）Execute the following command to export data:
+dd if=/dev/block/zram0 of=/data/samples/zram_dump.img bs=4K
+
+2. Train Dictionary
+Since LZ4 does not have a dedicated dictionary training tool, the zstd
+tool can be used for training[1]. The command is as follows:
+zstd --train /data/samples/* --split=4096 --maxdict=64KB -o /vendor/etc/dict_data
+
+3. Test Code
+adb shell "dd if=/data/samples/zram_dump.img of=/dev/test_pattern bs=4096 count=131072 conv=fsync"
+adb shell "swapoff /dev/block/zram0"
+adb shell "echo 1 > /sys/block/zram0/reset"
+adb shell "echo lz4 > /sys/block/zram0/comp_algorithm"
+adb shell "echo dict=/vendor/etc/dict_data   >  /sys/block/zram0/algorithm_params"
+adb shell "echo 6G > /sys/block/zram0/disksize"
+echo "Start Compression"
+adb shell "taskset 80 dd if=/dev/test_pattern of=/dev/block/zram0 bs=4096 count=131072 conv=fsync"
+echo.
+echo "Start Decompression"
+adb shell "taskset 80 dd if=/dev/block/zram0 of=/dev/output_result bs=4096 count=131072 conv=fsync"
+echo "mm_stat:"
+adb shell "cat /sys/block/zram0/mm_stat"
+echo.
+Note: To ensure stable test results, it is best to lock the CPU frequency
+before executing the test.
+
+LZ4 supports dictionaries up to 64KB. Below are the test results for
+compression rates at various dictionary sizes:
+dict_size          base        patch
+  4 KB          156M/s      219M/s
+  8 KB          136M/s      217M/s
+ 16KB           98M/s       214M/s
+ 32KB           66M/s       225M/s
+ 64KB           38M/s       224M/s
+
+When an LZ4 compression dictionary is enabled, compression speed is
+negatively impacted by the dictionary's size; larger dictionaries result
+in slower compression. This patch eliminates the influence of dictionary
+size on compression speed, ensuring consistent performance regardless of
+dictionary scale.
+
+[1] https://github.com/lz4/lz4?tab=readme-ov-file
+
+Signed-off-by: gao xu <gaoxu2@honor.com>
+Acked-by: Sergey Senozhatsky <senozhatsky@chromium.org>
+Signed-off-by: fukiame <fukiame@proton.me>
 
 diff --git a/drivers/block/zram/backend_lz4.c b/drivers/block/zram/backend_lz4.c
-index 04e18661476086502ac41355e9cc38cc2f353d52..b353f74a8aa6ea4d6dc44c79d655d994d5442553 100644
+index 04e18661476086502ac41355e9cc38cc2f353d52..c449d511ba86fef3c639e0cb00568ba8c4096fe3 100644
 --- a/drivers/block/zram/backend_lz4.c
 +++ b/drivers/block/zram/backend_lz4.c
-@@ -12,15 +12,36 @@ struct lz4_ctx {
- 	LZ4_stream_t *cstrm;
- };
+@@ -14,13 +14,38 @@ struct lz4_ctx {
  
-+struct lz4_drv {
-+	/* template compression stream with dictionary */
-+	LZ4_stream_t base_cstream;
-+	/* dictionary index of the current template */
-+	u32 dict_gen;
-+	bool base_c_valid;
-+};
-+
  static void lz4_release_params(struct zcomp_params *params)
  {
-+	kfree(params->drv_data);
++	LZ4_stream_t *dict_stream = params->drv_data;
++
 +	params->drv_data = NULL;
++	if (!dict_stream)
++		return;
++
++	kfree(dict_stream);
  }
  
  static int lz4_setup_params(struct zcomp_params *params)
  {
-+	struct lz4_drv *drv;
++	LZ4_stream_t *dict_stream;
++	int ret;
 +
  	if (params->level == ZCOMP_PARAM_NOT_SET)
  		params->level = LZ4_ACCELERATION_DEFAULT;
  
-+	drv = kzalloc_obj(drv, GFP_KERNEL);
-+	if (!drv)
++	if (!params->dict || !params->dict_sz)
++		return 0;
++
++	dict_stream = kzalloc_obj(*dict_stream, GFP_KERNEL);
++	if (!dict_stream)
 +		return -ENOMEM;
 +
-+	drv->dict_gen = 0;
-+	drv->base_c_valid = false;
-+
-+	params->drv_data = drv;
++	ret = LZ4_loadDict(dict_stream,
++			   params->dict, params->dict_sz);
++	if (ret != params->dict_sz) {
++		kfree(dict_stream);
++		return -EINVAL;
++	}
++	params->drv_data = dict_stream;
 +
  	return 0;
  }
  
-@@ -67,10 +88,32 @@ static int lz4_create(struct zcomp_params *params, struct zcomp_ctx *ctx)
- 	return -ENOMEM;
- }
- 
-+static int lz4_build_base_cstream(struct zcomp_params *params)
-+{
-+	struct lz4_drv *drv = params->drv_data;
-+	int ret;
-+
-+	if (!params->dict || !params->dict_sz)
-+		return -EINVAL;
-+
-+	memset(&drv->base_cstream, 0, sizeof(drv->base_cstream));
-+
-+	ret = LZ4_loadDict(&drv->base_cstream,
-+			   params->dict, params->dict_sz);
-+	if (ret != params->dict_sz)
-+		return -EINVAL;
-+
-+	drv->dict_gen = params->dict_gen;
-+	drv->base_c_valid = true;
-+
-+	return 0;
-+}
-+
- static int lz4_compress(struct zcomp_params *params, struct zcomp_ctx *ctx,
- 			struct zcomp_req *req)
- {
- 	struct lz4_ctx *zctx = ctx->context;
-+	struct lz4_drv *drv  = params->drv_data;
- 	int ret;
- 
- 	if (!zctx->cstrm) {
-@@ -78,10 +121,16 @@ static int lz4_compress(struct zcomp_params *params, struct zcomp_ctx *ctx,
- 					req->dst_len, params->level,
+@@ -79,9 +104,7 @@ static int lz4_compress(struct zcomp_params *params, struct zcomp_ctx *ctx,
  					zctx->mem);
  	} else {
-+		/* rebuild base_cstream when the dictionary changes */
-+		if (!drv->base_c_valid || drv->dict_gen != params->dict_gen) {
-+			ret = lz4_build_base_cstream(params);
-+			if (ret)
-+				return ret;
-+		}
-+
  		/* Cstrm needs to be reset */
 -		ret = LZ4_loadDict(zctx->cstrm, params->dict, params->dict_sz);
 -		if (ret != params->dict_sz)
 -			return -EINVAL;
-+		memcpy(zctx->cstrm, &drv->base_cstream,
-+		   sizeof(*zctx->cstrm));
++		memcpy(zctx->cstrm, params->drv_data, sizeof(*zctx->cstrm));
  		ret = LZ4_compress_fast_continue(zctx->cstrm, req->src,
  						 req->dst, req->src_len,
  						 req->dst_len, params->level);
-diff --git a/drivers/block/zram/zcomp.h b/drivers/block/zram/zcomp.h
-index eacfd3f7d61d9395694292713fb5da4f0023d6d7..5b7ff9fdd65e7553d19f93f8d68dfd6f6fa86b96 100644
---- a/drivers/block/zram/zcomp.h
-+++ b/drivers/block/zram/zcomp.h
-@@ -21,6 +21,7 @@ struct zcomp_params {
- 	void *dict;
- 	size_t dict_sz;
- 	s32 level;
-+	u32 dict_gen;
- 	union {
- 		struct deflate_params deflate;
- 	};
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index af679375b193598a836e14dbc1cebb16804c0050..2531edca8e0ace8d31d6fd3b32475d5da796f69a 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -1693,6 +1693,7 @@ static int comp_params_store(struct zram *zram, u32 prio, s32 level,
- 	zram->params[prio].dict_sz = sz;
- 	zram->params[prio].level = level;
- 	zram->params[prio].deflate.winbits = deflate_params->winbits;
-+	zram->params[prio].dict_gen++;
- 	return 0;
- }
- 

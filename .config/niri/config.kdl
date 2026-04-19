@@ -36,7 +36,7 @@ input {
         // drag false
         // drag-lock
         // natural-scroll
-        // accel-speed 0.2
+        accel-speed 1.0
         accel-profile "flat"
         scroll-method "edge"
         // disabled-on-external-mouse
@@ -45,8 +45,8 @@ input {
     mouse {
         // off
         // natural-scroll
-        // accel-speed 0.2
-        // accel-profile "flat"
+        accel-speed 1.0
+        accel-profile "flat"
         // scroll-method "no-scroll"
     }
 
@@ -63,7 +63,7 @@ input {
 
     tablet {
         // off
-        map-to-output "eDP-1"
+        // map-to-output "eDP-1"
         // left-handed
         // calibration-matrix 1.0 0.0 0.0 0.0 1.0 0.0
     }
@@ -708,7 +708,8 @@ environment {
 }
 
 cursor {
-    xcursor-theme "Kobo-Kanaeru-v2"
+    xcursor-theme "Runami-Yachiyo"
+    //xcursor-theme "Kobo-Kanaeru-v2"
     //xcursor-theme "Hoshimachi-Suisei"
     //xcursor-theme "Fuwawa-Abyssgard"
     //xcursor-theme "Eksistere-Kyrenia"

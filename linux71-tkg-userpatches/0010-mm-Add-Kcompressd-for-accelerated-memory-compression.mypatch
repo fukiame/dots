@@ -1,5 +1,5 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Masahito S <firelzrd@gmail.com>
+From: Qun-Wei Lin <qun-wei.lin@mediatek.com>
 Date: Tue, 16 Dec 2025 23:26:02 +0900
 Subject: [PATCH] mm: Add Kcompressd for accelerated memory compression
 
@@ -30,6 +30,7 @@ pressure and improving system responsiveness.
 Co-developed-by: Barry Song <21cnbao@gmail.com>
 Signed-off-by: Barry Song <21cnbao@gmail.com>
 Signed-off-by: Qun-Wei Lin <qun-wei.lin@mediatek.com>
+Co-developed-by: Masahito S <firelzrd@gmail.com>
 Reference: Re: [PATCH 0/2] Improve Zram by separating compression context from kswapd - Barry Song
            https://lore.kernel.org/lkml/20250313093005.13998-1-21cnbao@gmail.com/
 Signed-off-by: Juhyung Park <qkrwngud825@gmail.com>
@@ -38,18 +39,18 @@ Signed-off-by: Tashfin Shakeer Rhythm <tashfinshakeerrhythm@gmail.com>
 linux6.18-kcompressd-unofficial-0.5 // https://github.com/firelzrd/kcompressd-unofficial
 
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 3e51190a55e4c8ea1b353c63d21ca1dc7bf3e917..168fabeb90f2b87acf437507f50dae9aee367f2b 100644
+index 9adb2ad21d..dbbe793a17 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -23,6 +23,7 @@
- #include <linux/page-flags.h>
+@@ -24,6 +24,7 @@
  #include <linux/local_lock.h>
  #include <linux/zswap.h>
+ #include <linux/sizes.h>
 +#include <linux/kfifo.h>
  #include <asm/page.h>
  
  /* Free memory management - zoned buddy allocator.  */
-@@ -1438,6 +1439,12 @@ typedef struct pglist_data {
+@@ -1529,6 +1530,12 @@ typedef struct pglist_data {
  
  	atomic_t kswapd_failures;	/* Number of 'reclaimed == 0' runs */
  
@@ -63,22 +64,22 @@ index 3e51190a55e4c8ea1b353c63d21ca1dc7bf3e917..168fabeb90f2b87acf437507f50dae9a
  	int kcompactd_max_order;
  	enum zone_type kcompactd_highest_zoneidx;
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 62fc7499b40899b0f365e474ad99b4ba433cf61e..6103a0c1a482fc188696d12d641fe4963c37df5a 100644
+index 7a09df6977..4451c062bb 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -635,5 +635,7 @@ static inline bool mem_cgroup_swap_full(struct folio *folio)
- }
- #endif
+@@ -632,5 +632,7 @@ static inline bool mem_cgroup_swap_full(struct folio *folio)
+ 			continue;				\
+ 		else
  
 +extern int vm_kcompressd;
 +
  #endif /* __KERNEL__*/
  #endif /* _LINUX_SWAP_H */
 diff --git a/mm/mm_init.c b/mm/mm_init.c
-index df34797691bda2423132b10d0a84cc2d8a9177d0..435a9e249a09fcb3496eb511bcb0751f359e2b85 100644
+index f9f8e1af92..23dba4c5c6 100644
 --- a/mm/mm_init.c
 +++ b/mm/mm_init.c
-@@ -1409,6 +1409,7 @@ static void __meminit pgdat_init_internals(struct pglist_data *pgdat)
+@@ -1395,6 +1395,7 @@ static void __meminit pgdat_init_internals(struct pglist_data *pgdat)
  	pgdat_init_kcompactd(pgdat);
  
  	init_waitqueue_head(&pgdat->kswapd_wait);
@@ -87,7 +88,7 @@ index df34797691bda2423132b10d0a84cc2d8a9177d0..435a9e249a09fcb3496eb511bcb0751f
  
  	for (i = 0; i < NR_VMSCAN_THROTTLE; i++)
 diff --git a/mm/page_io.c b/mm/page_io.c
-index a2c034660c805ffb715e89979dc51af38d1179c3..0350472fa0ebcee8b27282a1d72a22396f6b3b1e 100644
+index 70cea9e24d..a0ca94bad5 100644
 --- a/mm/page_io.c
 +++ b/mm/page_io.c
 @@ -25,6 +25,8 @@
@@ -209,7 +210,7 @@ index a2c034660c805ffb715e89979dc51af38d1179c3..0350472fa0ebcee8b27282a1d72a2239
  	if (zswap_store(folio)) {
  		count_mthp_stat(folio_order(folio), MTHP_STAT_ZSWPOUT);
  		goto out_unlock;
-@@ -288,6 +386,37 @@ int swap_writeout(struct folio *folio, struct swap_iocb **swap_plug)
+@@ -292,6 +390,37 @@ int swap_writeout(struct folio *folio, struct swap_iocb **swap_plug)
  	return ret;
  }
  
@@ -248,10 +249,10 @@ index a2c034660c805ffb715e89979dc51af38d1179c3..0350472fa0ebcee8b27282a1d72a2239
  {
  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 diff --git a/mm/swap.h b/mm/swap.h
-index bfafa637c45850d6f28b71abd9b8e03814ff4a56..765ac0d829f132afc23b5a316717b4e64469cd9c 100644
+index a77016f242..5485bb4f89 100644
 --- a/mm/swap.h
 +++ b/mm/swap.h
-@@ -223,6 +223,7 @@ static inline void swap_read_unplug(struct swap_iocb *plug)
+@@ -227,6 +227,7 @@ static inline void swap_read_unplug(struct swap_iocb *plug)
  void swap_write_unplug(struct swap_iocb *sio);
  int swap_writeout(struct folio *folio, struct swap_iocb **swap_plug);
  void __swap_writepage(struct folio *folio, struct swap_iocb **swap_plug);
@@ -259,7 +260,7 @@ index bfafa637c45850d6f28b71abd9b8e03814ff4a56..765ac0d829f132afc23b5a316717b4e6
  
  /* linux/mm/swap_state.c */
  extern struct address_space swap_space __read_mostly;
-@@ -446,6 +447,11 @@ static inline int swap_writeout(struct folio *folio,
+@@ -449,6 +450,11 @@ static inline int swap_writeout(struct folio *folio,
  	return 0;
  }
  
@@ -268,14 +269,14 @@ index bfafa637c45850d6f28b71abd9b8e03814ff4a56..765ac0d829f132afc23b5a316717b4e6
 +	return 0;
 +}
 +
- static inline bool swap_cache_has_folio(swp_entry_t entry)
+ static inline int swap_retry_table_alloc(swp_entry_t entry, gfp_t gfp)
  {
- 	return false;
+ 	return -EINVAL;
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 0fc9373e8251159bcf66373d5eb0728d47447f7d..b0ba16cbe7f52241a9377121f7358a5aae4ea56f 100644
+index bd1b1aa125..425e7cda4f 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -7474,6 +7474,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+@@ -7632,6 +7632,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
  void __meminit kswapd_run(int nid)
  {
  	pg_data_t *pgdat = NODE_DATA(nid);
@@ -283,7 +284,7 @@ index 0fc9373e8251159bcf66373d5eb0728d47447f7d..b0ba16cbe7f52241a9377121f7358a5a
  
  	pgdat_kswapd_lock(pgdat);
  	if (!pgdat->kswapd) {
-@@ -7487,7 +7488,28 @@ void __meminit kswapd_run(int nid)
+@@ -7645,7 +7646,28 @@ void __meminit kswapd_run(int nid)
  		} else {
  			wake_up_process(pgdat->kswapd);
  		}
@@ -312,7 +313,7 @@ index 0fc9373e8251159bcf66373d5eb0728d47447f7d..b0ba16cbe7f52241a9377121f7358a5a
  	pgdat_kswapd_unlock(pgdat);
  }
  
-@@ -7506,9 +7528,17 @@ void __meminit kswapd_stop(int nid)
+@@ -7664,9 +7686,17 @@ void __meminit kswapd_stop(int nid)
  		kthread_stop(kswapd);
  		pgdat->kswapd = NULL;
  	}
@@ -330,7 +331,7 @@ index 0fc9373e8251159bcf66373d5eb0728d47447f7d..b0ba16cbe7f52241a9377121f7358a5a
  static const struct ctl_table vmscan_sysctl_table[] = {
  	{
  		.procname	= "swappiness",
-@@ -7519,6 +7549,15 @@ static const struct ctl_table vmscan_sysctl_table[] = {
+@@ -7677,6 +7707,15 @@ static const struct ctl_table vmscan_sysctl_table[] = {
  		.extra1		= SYSCTL_ZERO,
  		.extra2		= SYSCTL_TWO_HUNDRED,
  	},
@@ -346,3 +347,6 @@ index 0fc9373e8251159bcf66373d5eb0728d47447f7d..b0ba16cbe7f52241a9377121f7358a5a
  #ifdef CONFIG_NUMA
  	{
  		.procname	= "zone_reclaim_mode",
+-- 
+2.34.1
+

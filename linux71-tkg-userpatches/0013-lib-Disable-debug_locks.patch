@@ -1,0 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: celtare21 <celtare21@gmail.com>
+Date: Tue, 21 Jan 2020 10:59:46 +0000
+Subject: [PATCH] lib: Disable debug_locks
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+
+diff --git a/lib/debug_locks.c b/lib/debug_locks.c
+index a75ee30b77cb8dd70d792d36e17ec74b0385852f..794bb0c1f5381334d9c209642c3d9d762dc61545 100644
+--- a/lib/debug_locks.c
++++ b/lib/debug_locks.c
+@@ -22,7 +22,7 @@
+  * that would just muddy the log. So we report the first one and
+  * shut up after that.
+  */
+-int debug_locks __read_mostly = 1;
++int debug_locks __read_mostly = 0;
+ EXPORT_SYMBOL_GPL(debug_locks);
+ 
+ /*

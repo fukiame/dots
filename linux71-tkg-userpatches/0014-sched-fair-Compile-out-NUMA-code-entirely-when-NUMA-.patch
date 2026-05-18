@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sultan Alsawaf <sultan@kerneltoast.com>
+Date: Thu, 6 May 2021 00:12:28 -0700
+Subject: [PATCH] sched/fair: Compile out NUMA code entirely when NUMA is
+ disabled
+
+Scheduler code is very hot and every little optimization counts. Instead
+of constantly checking sched_numa_balancing from task_tick_fair() when NUMA
+is disabled, compile it out.
+
+Signed-off-by: Sultan Alsawaf <sultan@kerneltoast.com>
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 6c74fb81ea54744cdc96d4c3e51ac4e8e7636982..ef6687b9d290fa71a1003688347e7638406b97c8 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -13710,8 +13710,10 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
+ 	if (queued)
+ 		return;
+ 
++#ifdef CONFIG_NUMA_BALANCING
+ 	if (static_branch_unlikely(&sched_numa_balancing))
+ 		task_tick_numa(rq, curr);
++#endif /* CONFIG_NUMA_BALANCING */
+ 
+ 	update_misfit_status(curr, rq);
+ 	check_update_overutilized_status(task_rq(curr));

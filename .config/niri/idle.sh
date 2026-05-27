@@ -3,6 +3,7 @@
 if [ -z "$1" ]; then
 
 e="$(echo 'default 6 9 27
+shrtnolock 3 300 4.5
 ext30_T30 9 12 30
 nosleep60_P60 12 15 600
 nolocksleep60_P60 12 600 600
@@ -14,6 +15,10 @@ case "$e" in
 	'default'*)        tOff=60
 		                 tLock=90
 		                 tSuspend=270
+	;;
+	'shrtnolock'*)     tOff=30
+		                 tLock=3000
+		                 tSuspend=45
 	;;
 	'ext30'*)          tOff=90
 		                 tLock=120
@@ -50,11 +55,16 @@ fi
 
 [ -n "$tOff" ] && {
 	pkill -f swayidle
+	if [ "$tLock" -gt "$tSuspend" ]; then
+		slpcmd="echo"
+	else
+		slpcmd="swaylock -f"
+	fi
 	swayidle -w \
          timeout "$tOff" 'niri msg action power-off-monitors' \
          timeout "$tLock" 'swaylock -f' \
          timeout "$tSuspend" 'systemctl suspend' \
-         before-sleep 'swaylock -f' &
+         before-sleep "$slpcmd" &
 	if [ -z "$1" ] ; then
 	notify-send -a "swayidle switch" "maybe succeed" "$(ps -Ao args=cmd | rg swayidle -m1 | sed 's/timeout /\n/g' |sed 's/before-sleep/\nbefore-sleep/g' | rg -v 'swayidle')"
 	fi

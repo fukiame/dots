@@ -5,7 +5,7 @@ Subject: [PATCH] linux7.1-rc1-le9uo-1.15
 
 
 diff --git a/Documentation/admin-guide/sysctl/vm.rst b/Documentation/admin-guide/sysctl/vm.rst
-index 97e12359775c9290c237d551c300525b25b66d88..3dbfed46deef5c309c08dd09c540cb8bba55471b 100644
+index b9b0c218bfb4400b38843821685a32d8a5721b9e..a96a1b05827ac24e1ca493fda4dac24ce35cb7cf 100644
 --- a/Documentation/admin-guide/sysctl/vm.rst
 +++ b/Documentation/admin-guide/sysctl/vm.rst
 @@ -25,6 +25,9 @@ files can be found in mm/swap.c.
@@ -102,12 +102,12 @@ index 97e12359775c9290c237d551c300525b25b66d88..3dbfed46deef5c309c08dd09c540cb8b
  unprivileged_userfaultfd
  ========================
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 9b0152e1ae43a6973fdf98f3da9e51b393974537..dcece800865f72826502aa4096bf3a084122461a 100644
+index 496c6711783719a1375e3988638347cc48c478cb..2ddca422b0a9d212cfdba4bced53d1c8c37ec1de 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -206,6 +206,14 @@ static inline void __mm_zero_struct_page(struct page *page)
-  */
- #define DEFAULT_MAX_MAP_COUNT	(16777216)
+@@ -207,6 +207,14 @@ static inline void __mm_zero_struct_page(struct page *page)
+ #define MAPCOUNT_ELF_CORE_MARGIN	(5)
+ #define DEFAULT_MAX_MAP_COUNT	(INT_MAX - MAPCOUNT_ELF_CORE_MARGIN)
  
 +extern bool sysctl_workingset_protection;
 +extern u8 sysctl_anon_min_ratio;
@@ -121,10 +121,10 @@ index 9b0152e1ae43a6973fdf98f3da9e51b393974537..dcece800865f72826502aa4096bf3a08
  extern unsigned long sysctl_admin_reserve_kbytes;
  
 diff --git a/mm/Kconfig b/mm/Kconfig
-index e8bf1e9e6ad9076073d3762aae1acc7cfe6d77fd..b991cf0b935ebc29a54b297cdc3623ed692745dd 100644
+index 9e0ca48249054ffab3cacf1fc92d3733b1041db9..937c8f967407fd3db6bea03aab78b57f9ff5e755 100644
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
-@@ -425,6 +425,69 @@ config ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
+@@ -478,6 +478,69 @@ config ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
  config ARCH_WANT_HUGETLB_VMEMMAP_PREINIT
  	bool
  
@@ -195,10 +195,10 @@ index e8bf1e9e6ad9076073d3762aae1acc7cfe6d77fd..b991cf0b935ebc29a54b297cdc3623ed
  	bool
  
 diff --git a/mm/mm_init.c b/mm/mm_init.c
-index f9f8e1af921cda91d812cffdad2f1a0698cfd6ac..8853c7c536376db8e93ae01e0d698efbaa48743a 100644
+index c2e5bcc96fcdc33d2358d4ea112ac6c3baaed955..7fa5df511f70f26ea1da00cdd1ccc15dadb0faf2 100644
 --- a/mm/mm_init.c
 +++ b/mm/mm_init.c
-@@ -2656,6 +2656,7 @@ static void __init mem_init_print_info(void)
+@@ -2660,6 +2660,7 @@ static void __init mem_init_print_info(void)
  		, K(totalhigh_pages())
  #endif
  		);
@@ -207,7 +207,7 @@ index f9f8e1af921cda91d812cffdad2f1a0698cfd6ac..8853c7c536376db8e93ae01e0d698efb
  
  #ifndef __HAVE_COLOR_ZERO_PAGE
 diff --git a/mm/util.c b/mm/util.c
-index 3cc949a0b7ed4f5d3ea5194eb18344997726f495..56c9c9e79f9094982b0ec1e49de7f0e8d2f85d09 100644
+index af2c2103f0d952181d6491fb34122d457c174026..4581d67ec67eb3a778f01f4932a0443fbbb88d77 100644
 --- a/mm/util.c
 +++ b/mm/util.c
 @@ -888,6 +888,40 @@ static const struct ctl_table util_sysctl_table[] = {
@@ -252,7 +252,7 @@ index 3cc949a0b7ed4f5d3ea5194eb18344997726f495..56c9c9e79f9094982b0ec1e49de7f0e8
  
  static int __init init_vm_util_sysctls(void)
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 66ea159946370960a871249891834a3ada2fc23e..6469d06f07440107a070366da8d0911850311744 100644
+index cb725852c7985f9a79cd2cbcc1425e2dd6de1959..e468415316365a54a3e99c07b11c8cad6403a7ec 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -146,6 +146,15 @@ struct scan_control {
@@ -271,7 +271,7 @@ index 66ea159946370960a871249891834a3ada2fc23e..6469d06f07440107a070366da8d09118
  	/* Always discard instead of demoting to lower tier memory */
  	unsigned int no_demotion:1;
  
-@@ -195,6 +204,15 @@ struct scan_control {
+@@ -193,6 +202,15 @@ struct scan_control {
  #define prefetchw_prev_lru_folio(_folio, _base, _field) do { } while (0)
  #endif
  
@@ -287,7 +287,7 @@ index 66ea159946370960a871249891834a3ada2fc23e..6469d06f07440107a070366da8d09118
  /*
   * From 0 .. MAX_SWAPPINESS.  Higher means more swappy.
   */
-@@ -1117,6 +1135,10 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1114,6 +1132,10 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (!sc->may_unmap && folio_mapped(folio))
  			goto keep_locked;
  
@@ -426,7 +426,7 @@ index 66ea159946370960a871249891834a3ada2fc23e..6469d06f07440107a070366da8d09118
  #ifdef CONFIG_LRU_GEN
  
  DEFINE_STATIC_KEY_FALSE(lru_switch);
-@@ -4777,11 +4906,21 @@ static int get_tier_idx(struct lruvec *lruvec, int type)
+@@ -4746,11 +4875,21 @@ static int get_tier_idx(struct lruvec *lruvec, int type)
  	return tier - 1;
  }
  
@@ -450,16 +450,16 @@ index 66ea159946370960a871249891834a3ada2fc23e..6469d06f07440107a070366da8d09118
  		return LRU_GEN_FILE;
  
  	if (swappiness >= MAX_SWAPPINESS)
-@@ -4801,7 +4940,7 @@ static int isolate_folios(unsigned long nr_to_scan, struct lruvec *lruvec,
- 			  int *type_scanned, struct list_head *list)
+@@ -4772,7 +4911,7 @@ static int isolate_folios(unsigned long nr_to_scan, struct lruvec *lruvec,
  {
  	int i;
+ 	int total_scanned = 0;
 -	int type = get_type_to_scan(lruvec, swappiness);
 +	int type = get_type_to_scan(lruvec, sc, swappiness);
  
  	for_each_evictable_type(i, swappiness) {
  		int scanned;
-@@ -5054,6 +5193,12 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
+@@ -5009,6 +5148,12 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
  	struct mem_cgroup *memcg = lruvec_memcg(lruvec);
  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
  
@@ -472,7 +472,7 @@ index 66ea159946370960a871249891834a3ada2fc23e..6469d06f07440107a070366da8d09118
  	/* lru_gen_age_node() called mem_cgroup_calculate_protection() */
  	if (mem_cgroup_below_min(NULL, memcg))
  		return MEMCG_LRU_YOUNG;
-@@ -6212,6 +6357,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+@@ -6168,6 +6313,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  
  	prepare_scan_control(pgdat, sc);
  

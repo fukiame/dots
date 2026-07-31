@@ -11,10 +11,21 @@ is disabled, compile it out.
 Signed-off-by: Sultan Alsawaf <sultan@kerneltoast.com>
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 6c74fb81ea54744cdc96d4c3e51ac4e8e7636982..ef6687b9d290fa71a1003688347e7638406b97c8 100644
+index d7ec236ec521c89b617ba1d0c36b2f08992078b9..675302d5e2711ef2c2eace60ec5638a11d8f4b93 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -13710,8 +13710,10 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
+@@ -4459,10 +4459,6 @@ static void update_scan_period(struct task_struct *p, int new_cpu)
+ 
+ #else /* !CONFIG_NUMA_BALANCING: */
+ 
+-static void task_tick_numa(struct rq *rq, struct task_struct *curr)
+-{
+-}
+-
+ static inline void account_numa_enqueue(struct rq *rq, struct task_struct *p)
+ {
+ }
+@@ -14874,8 +14870,10 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
  	if (queued)
  		return;
  
@@ -23,5 +34,5 @@ index 6c74fb81ea54744cdc96d4c3e51ac4e8e7636982..ef6687b9d290fa71a1003688347e7638
  		task_tick_numa(rq, curr);
 +#endif /* CONFIG_NUMA_BALANCING */
  
- 	update_misfit_status(curr, rq);
- 	check_update_overutilized_status(task_rq(curr));
+ 	task_tick_cache(rq, curr);
+ 

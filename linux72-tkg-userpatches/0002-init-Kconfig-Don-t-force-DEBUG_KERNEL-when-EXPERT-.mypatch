@@ -9,10 +9,10 @@ Signed-off-by: Divyanshu-Modi <divyan.m05@gmail.com>
 Signed-off-by: Tashfin Shakeer Rhythm <tashfinshakeerrhythm@gmail.com>
 
 diff --git a/init/Kconfig b/init/Kconfig
-index 7484cd703bc1ab263345f2c6ef38a13bda4a046e..440f6f47ccf0b4b57a5286b3c8ea17894edcd9a9 100644
+index d3e70f4088be8e78e6eaa3027835c9fb9198c534..5947786bde555e26c257bffcf0719de6ee9f4734 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1671,8 +1671,6 @@ config HAVE_PCSPKR_PLATFORM
+@@ -1779,8 +1779,6 @@ config HAVE_PCSPKR_PLATFORM
  
  menuconfig EXPERT
  	bool "Configure standard kernel features (expert users)"

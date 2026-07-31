@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: fukiame <fukiame@proton.me>
+Date: Sun, 28 Jun 2026 16:25:30 +0700
+Subject: [PATCH] [trysail] cpuidle: clear all tracing inside
+ cpuidle_enter_state()
+
+8.09%  [kernel]          [k] cpuidle_enter_state
+
+highest thing in perf top, cuh
+
+Signed-off-by: fukiame <fukiame@proton.me>
+
+diff --git a/drivers/cpuidle/cpuidle.c b/drivers/cpuidle/cpuidle.c
+index 2d2f40a2cb813c68bf355906f7aa3dc69984a8d0..e14eda88f16f6c4dbbd088fa34e2ebab1001bb26 100644
+--- a/drivers/cpuidle/cpuidle.c
++++ b/drivers/cpuidle/cpuidle.c
+@@ -245,7 +245,6 @@ noinstr int cpuidle_enter_state(struct cpuidle_device *dev,
+ 	/* Take note of the planned idle state. */
+ 	sched_idle_set_state(target_state);
+ 
+-	trace_cpu_idle(index, dev->cpu);
+ 	time_start = ns_to_ktime(local_clock_noinstr());
+ 
+ 	stop_critical_timings();
+@@ -280,7 +279,6 @@ noinstr int cpuidle_enter_state(struct cpuidle_device *dev,
+ 
+ 	sched_clock_idle_wakeup_event();
+ 	time_end = ns_to_ktime(local_clock_noinstr());
+-	trace_cpu_idle(PWR_EVENT_EXIT, dev->cpu);
+ 
+ 	/* The cpu is no longer idle or about to enter idle. */
+ 	sched_idle_set_state(NULL);
+@@ -313,7 +311,6 @@ noinstr int cpuidle_enter_state(struct cpuidle_device *dev,
+ 
+ 				/* Shallower states are enabled, so update. */
+ 				dev->states_usage[entered_state].above++;
+-				trace_cpu_idle_miss(dev->cpu, entered_state, false);
+ 				break;
+ 			}
+ 		} else if (diff > delay) {
+@@ -327,7 +324,6 @@ noinstr int cpuidle_enter_state(struct cpuidle_device *dev,
+ 				 */
+ 				if (diff - delay >= drv->states[i].target_residency_ns) {
+ 					dev->states_usage[entered_state].below++;
+-					trace_cpu_idle_miss(dev->cpu, entered_state, true);
+ 				}
+ 
+ 				break;

@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tyler Nijmeh <tylernij@gmail.com>
+Date: Fri, 8 Mar 2019 14:34:18 -0800
+Subject: [PATCH] irq: spurious: Disable IRQ debugging by default
+
+Signed-off-by: Tyler Nijmeh <tylernij@gmail.com>
+Signed-off-by: sohamxda7 <sensoham135@gmail.com>
+Signed-off-by: Oktapra Amtono <oktapra.amtono@gmail.com>
+Signed-off-by: Anush02198 <Anush.4376@gmail.com>
+Signed-off-by: Divyanshu-Modi <divyan.m05@gmail.com>
+Signed-off-by: Tashfin Shakeer Rhythm <tashfinshakeerrhythm@gmail.com>
+Signed-off-by: NotZeetaa <rodrigo2005contente@gmail.com>
+Signed-off-by: priiii1808 <priyanshusinghal0818@gmail.com>
+
+diff --git a/kernel/irq/spurious.c b/kernel/irq/spurious.c
+index 73280ccb74b0856385b3a4ef994382ed74d8ef9f..1966b34cf51cb30e77a1986efe71b45ef1aacbcb 100644
+--- a/kernel/irq/spurious.c
++++ b/kernel/irq/spurious.c
+@@ -379,7 +379,7 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
+ 	desc->irqs_unhandled = 0;
+ }
+ 
+-bool noirqdebug __read_mostly;
++bool noirqdebug __read_mostly = true;
+ 
+ int noirqdebug_setup(char *str)
+ {

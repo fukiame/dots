@@ -24,10 +24,10 @@ omit it.
 Signed-off-by: Sultan Alsawaf <sultan@kerneltoast.com>
 
 diff --git a/drivers/i2c/busses/i2c-designware-common.c b/drivers/i2c/busses/i2c-designware-common.c
-index 4dc57fd561703bc12a0c40889841571fd2943e70..175391c09b28f46ad644584778274fb37a63b639 100644
+index e4dfa2ec58bb76e0f02e6ee9b840a37b0cc74dac..448af232395aa7422a260c8ba7326ee301635b33 100644
 --- a/drivers/i2c/busses/i2c-designware-common.c
 +++ b/drivers/i2c/busses/i2c-designware-common.c
-@@ -884,6 +884,9 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
+@@ -892,6 +892,9 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
  
  	device_set_node(&dev->adapter.dev, dev_fwnode(dev->dev));
  
@@ -38,7 +38,7 @@ index 4dc57fd561703bc12a0c40889841571fd2943e70..175391c09b28f46ad644584778274fb3
  	if (ret)
  		return ret;
 diff --git a/drivers/i2c/busses/i2c-designware-master.c b/drivers/i2c/busses/i2c-designware-master.c
-index de929b91d5ead396c2817cbaf0de6d246967061b..7ef9c190f4f8510f0e0b387730a83de83e087085 100644
+index 7a301c8b604ef448f24a57c278e8e8fb44d5f438..12e1d6d374ca315a56b11fff3730b3e82763347c 100644
 --- a/drivers/i2c/busses/i2c-designware-master.c
 +++ b/drivers/i2c/busses/i2c-designware-master.c
 @@ -715,6 +715,11 @@ irqreturn_t i2c_dw_isr_master(struct dw_i2c_dev *dev)

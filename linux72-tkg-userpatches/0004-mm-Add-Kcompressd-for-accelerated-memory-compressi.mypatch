@@ -39,7 +39,7 @@ Signed-off-by: Tashfin Shakeer Rhythm <tashfinshakeerrhythm@gmail.com>
 linux6.18-kcompressd-unofficial-0.5 // https://github.com/firelzrd/kcompressd-unofficial
 
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 9adb2ad21d..dbbe793a17 100644
+index ca27121871475c1de282e640b8ae3e02046f86ec..e18bbe25d967a68a506b6d41d12374913fc13f92 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
 @@ -24,6 +24,7 @@
@@ -50,7 +50,7 @@ index 9adb2ad21d..dbbe793a17 100644
  #include <asm/page.h>
  
  /* Free memory management - zoned buddy allocator.  */
-@@ -1529,6 +1530,12 @@ typedef struct pglist_data {
+@@ -1522,6 +1523,12 @@ typedef struct pglist_data {
  
  	atomic_t kswapd_failures;	/* Number of 'reclaimed == 0' runs */
  
@@ -64,7 +64,7 @@ index 9adb2ad21d..dbbe793a17 100644
  	int kcompactd_max_order;
  	enum zone_type kcompactd_highest_zoneidx;
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 7a09df6977..4451c062bb 100644
+index 8f0f68e245baa347ed2112b56c9afd284e38dd3c..412f4de29b0e50be8910d3e7e80ed4c6036e3ada 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
 @@ -632,5 +632,7 @@ static inline bool mem_cgroup_swap_full(struct folio *folio)
@@ -76,7 +76,7 @@ index 7a09df6977..4451c062bb 100644
  #endif /* __KERNEL__*/
  #endif /* _LINUX_SWAP_H */
 diff --git a/mm/mm_init.c b/mm/mm_init.c
-index f9f8e1af92..23dba4c5c6 100644
+index 0f64909e8d20e2b78a44f3a22cf216683ffb8efd..c2e5bcc96fcdc33d2358d4ea112ac6c3baaed955 100644
 --- a/mm/mm_init.c
 +++ b/mm/mm_init.c
 @@ -1395,6 +1395,7 @@ static void __meminit pgdat_init_internals(struct pglist_data *pgdat)
@@ -88,7 +88,7 @@ index f9f8e1af92..23dba4c5c6 100644
  
  	for (i = 0; i < NR_VMSCAN_THROTTLE; i++)
 diff --git a/mm/page_io.c b/mm/page_io.c
-index 70cea9e24d..a0ca94bad5 100644
+index b23f494fcc83daaa989db13b1ba628dd7d357261..99c1a3e4ed6917ae842b945a2b8acd4f21e8e335 100644
 --- a/mm/page_io.c
 +++ b/mm/page_io.c
 @@ -25,6 +25,8 @@
@@ -98,10 +98,10 @@ index 70cea9e24d..a0ca94bad5 100644
 +#include <linux/cpumask.h>
 +#include <linux/kfifo.h>
  #include "swap.h"
+ #include "swap_table.h"
  
- static void __end_swap_bio_write(struct bio *bio)
-@@ -233,6 +235,94 @@ static void swap_zeromap_folio_clear(struct folio *folio)
- 	}
+@@ -244,6 +246,94 @@ static void swap_zeromap_folio_clear(struct folio *folio)
+ 	swap_cluster_unlock(ci);
  }
  
 +/*
@@ -195,7 +195,7 @@ index 70cea9e24d..a0ca94bad5 100644
  /*
   * We may have stale swap cache pages in memory: notice
   * them here and get rid of the unnecessary final write.
-@@ -272,6 +362,14 @@ int swap_writeout(struct folio *folio, struct swap_iocb **swap_plug)
+@@ -282,6 +372,14 @@ int swap_writeout(struct folio *folio, struct swap_iocb **swap_plug)
  	 */
  	swap_zeromap_folio_clear(folio);
  
@@ -210,7 +210,7 @@ index 70cea9e24d..a0ca94bad5 100644
  	if (zswap_store(folio)) {
  		count_mthp_stat(folio_order(folio), MTHP_STAT_ZSWPOUT);
  		goto out_unlock;
-@@ -292,6 +390,37 @@ int swap_writeout(struct folio *folio, struct swap_iocb **swap_plug)
+@@ -302,6 +400,37 @@ int swap_writeout(struct folio *folio, struct swap_iocb **swap_plug)
  	return ret;
  }
  
@@ -249,10 +249,10 @@ index 70cea9e24d..a0ca94bad5 100644
  {
  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 diff --git a/mm/swap.h b/mm/swap.h
-index a77016f242..5485bb4f89 100644
+index 77d2d14eda421e72f6b199e68978561da4da4ca8..14fb023ffe10d6256a9466b432e1c1fdfaa4ad19 100644
 --- a/mm/swap.h
 +++ b/mm/swap.h
-@@ -227,6 +227,7 @@ static inline void swap_read_unplug(struct swap_iocb *plug)
+@@ -251,6 +251,7 @@ static inline void swap_read_unplug(struct swap_iocb *plug)
  void swap_write_unplug(struct swap_iocb *sio);
  int swap_writeout(struct folio *folio, struct swap_iocb **swap_plug);
  void __swap_writepage(struct folio *folio, struct swap_iocb **swap_plug);
@@ -260,7 +260,7 @@ index a77016f242..5485bb4f89 100644
  
  /* linux/mm/swap_state.c */
  extern struct address_space swap_space __read_mostly;
-@@ -449,6 +450,11 @@ static inline int swap_writeout(struct folio *folio,
+@@ -433,6 +434,11 @@ static inline int swap_writeout(struct folio *folio,
  	return 0;
  }
  
@@ -273,10 +273,10 @@ index a77016f242..5485bb4f89 100644
  {
  	return -EINVAL;
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bd1b1aa125..425e7cda4f 100644
+index e55eb94e55c41a75194efe2bceeed788696a138b..cb725852c7985f9a79cd2cbcc1425e2dd6de1959 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -7632,6 +7632,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+@@ -7600,6 +7600,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
  void __meminit kswapd_run(int nid)
  {
  	pg_data_t *pgdat = NODE_DATA(nid);
@@ -284,7 +284,7 @@ index bd1b1aa125..425e7cda4f 100644
  
  	pgdat_kswapd_lock(pgdat);
  	if (!pgdat->kswapd) {
-@@ -7645,7 +7646,28 @@ void __meminit kswapd_run(int nid)
+@@ -7613,7 +7614,28 @@ void __meminit kswapd_run(int nid)
  		} else {
  			wake_up_process(pgdat->kswapd);
  		}
@@ -313,7 +313,7 @@ index bd1b1aa125..425e7cda4f 100644
  	pgdat_kswapd_unlock(pgdat);
  }
  
-@@ -7664,9 +7686,17 @@ void __meminit kswapd_stop(int nid)
+@@ -7632,9 +7654,17 @@ void __meminit kswapd_stop(int nid)
  		kthread_stop(kswapd);
  		pgdat->kswapd = NULL;
  	}
@@ -331,7 +331,7 @@ index bd1b1aa125..425e7cda4f 100644
  static const struct ctl_table vmscan_sysctl_table[] = {
  	{
  		.procname	= "swappiness",
-@@ -7677,6 +7707,15 @@ static const struct ctl_table vmscan_sysctl_table[] = {
+@@ -7645,6 +7675,15 @@ static const struct ctl_table vmscan_sysctl_table[] = {
  		.extra1		= SYSCTL_ZERO,
  		.extra2		= SYSCTL_TWO_HUNDRED,
  	},
@@ -347,6 +347,3 @@ index bd1b1aa125..425e7cda4f 100644
  #ifdef CONFIG_NUMA
  	{
  		.procname	= "zone_reclaim_mode",
--- 
-2.34.1
-

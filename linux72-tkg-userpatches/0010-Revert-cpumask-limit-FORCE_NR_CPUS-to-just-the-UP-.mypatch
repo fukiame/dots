@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: fukiame <fukiame@proton.me>
+Date: Sun, 28 Jun 2026 15:34:05 +0700
+Subject: [PATCH] Revert "cpumask: limit FORCE_NR_CPUS to just the UP case"
+
+This reverts commit 5d272dd1b3430bb31fa30042490fa081512424e4.
+
+diff --git a/lib/Kconfig b/lib/Kconfig
+index 55748b68714e036ddec1f0b751617a052c9f7c33..6d22da323b43e5ab43da1031a5f303315a82e6de 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -405,7 +405,13 @@ config CPUMASK_OFFSTACK
+ 	  stack overflow.
+ 
+ config FORCE_NR_CPUS
+-	def_bool !SMP
++       bool "Set number of CPUs at compile time"
++       depends on SMP && EXPERT && !COMPILE_TEST
++       help
++         Say Yes if you have NR_CPUS set to an actual number of possible
++         CPUs in your system, not to a default value. This forces the core
++         code to rely on compile-time value and optimize kernel routines
++         better.
+ 
+ config CPU_RMAP
+ 	bool

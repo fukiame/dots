@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: repinger <evanf780@gmail.com>
+Date: Fri, 25 Mar 2022 11:15:06 +0700
+Subject: [PATCH] cpufreq: schedutil: Inline `sugov_policy_free()`
+
+Signed-off-by: repinger <evanf780@gmail.com>
+Signed-off-by: Tashfin Shakeer Rhythm <tashfinshakeerrhythm@gmail.com>
+
+diff --git a/kernel/sched/cpufreq_schedutil.c b/kernel/sched/cpufreq_schedutil.c
+index a4e689eefdfbd6fd6b1d9f43596e9eed0e4d2915..521e8c2d0ad0280a79ff21a2859fd715087aed47 100644
+--- a/kernel/sched/cpufreq_schedutil.c
++++ b/kernel/sched/cpufreq_schedutil.c
+@@ -649,7 +649,7 @@ static struct sugov_policy *sugov_policy_alloc(struct cpufreq_policy *policy)
+ 	return sg_policy;
+ }
+ 
+-static void sugov_policy_free(struct sugov_policy *sg_policy)
++static inline void sugov_policy_free(struct sugov_policy *sg_policy)
+ {
+ 	kfree(sg_policy);
+ }

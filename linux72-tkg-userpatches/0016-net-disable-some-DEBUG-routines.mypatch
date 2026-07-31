@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: psndna88 <psndna88@gmail.com>
+Date: Mon, 15 Apr 2024 17:24:59 +0530
+Subject: [PATCH] net: disable some DEBUG routines
+
+(cherry picked from commit 01449123ec442b4444ab11a7433d31021b34de15)
+Signed-off-by: TogoFire <togofire@mailfence.com>
+Change-Id: I79bbccd945d8b6055497ec496004463cd778b6f1
+
+diff --git a/include/net/tcp.h b/include/net/tcp.h
+index 2c5b889530b55623f8d98462ec5284d103e00158..f6a749e4fa8c21253cd4c3bb41b48e60b06e61b5 100644
+--- a/include/net/tcp.h
++++ b/include/net/tcp.h
+@@ -14,7 +14,7 @@
+ #ifndef _TCP_H
+ #define _TCP_H
+ 
+-#define FASTRETRANS_DEBUG 1
++#define FASTRETRANS_DEBUG 0
+ 
+ #include <linux/list.h>
+ #include <linux/tcp.h>
+diff --git a/net/core/neighbour.c b/net/core/neighbour.c
+index 1349c0eedb642539b28391390fd82f543e004353..0e65611649d3e7252276b0533f59043254a429cb 100644
+--- a/net/core/neighbour.c
++++ b/net/core/neighbour.c
+@@ -41,7 +41,7 @@
+ 
+ #include <trace/events/neigh.h>
+ 
+-#define NEIGH_DEBUG 1
++#define NEIGH_DEBUG 0
+ #define neigh_dbg(level, fmt, ...)		\
+ do {						\
+ 	if (level <= NEIGH_DEBUG)		\

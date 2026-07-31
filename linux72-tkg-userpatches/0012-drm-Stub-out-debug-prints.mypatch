@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sultan Alsawaf <sultan@kerneltoast.com>
+Date: Fri, 5 Jan 2024 18:59:04 -0800
+Subject: [PATCH] drm: Stub out debug prints
+
+Within the display server process, __drm_dbg consumes significant CPU time:
+    2.40%  [kernel]       [k] __drm_dbg
+
+Instead of compiling in all DRM debug print statements, stub them out to
+reduce runtime overhead and size.
+
+Signed-off-by: Sultan Alsawaf <sultan@kerneltoast.com>
+
+diff --git a/drivers/gpu/drm/drm_print.c b/drivers/gpu/drm/drm_print.c
+index ded9461df5f257e7a005361ab1897616ea1b2b72..602a36760165abab072aee6a1013877a727b2d05 100644
+--- a/drivers/gpu/drm/drm_print.c
++++ b/drivers/gpu/drm/drm_print.c
+@@ -212,6 +212,7 @@ void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf)
+ }
+ EXPORT_SYMBOL(__drm_printfn_info);
+ 
++#ifdef CONFIG_DRM_DEBUG_PRINT
+ void __drm_printfn_dbg(struct drm_printer *p, struct va_format *vaf)
+ {
+ 	const struct drm_device *drm = p->arg;
+@@ -224,6 +225,7 @@ void __drm_printfn_dbg(struct drm_printer *p, struct va_format *vaf)
+ 	__drm_dev_vprintk(dev, KERN_DEBUG, p->origin, p->prefix, vaf);
+ }
+ EXPORT_SYMBOL(__drm_printfn_dbg);
++#endif
+ 
+ void __drm_printfn_err(struct drm_printer *p, struct va_format *vaf)
+ {
+diff --git a/include/drm/drm_print.h b/include/drm/drm_print.h
+index ab017b05e1751b97e39bdc6a145462fbbf743e57..685ec529dd4e656cfd126c5d86e8b3115b2e995d 100644
+--- a/include/drm/drm_print.h
++++ b/include/drm/drm_print.h
+@@ -190,7 +190,11 @@ void __drm_puts_coredump(struct drm_printer *p, const char *str);
+ void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf);
+ void __drm_puts_seq_file(struct drm_printer *p, const char *str);
+ void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf);
++#ifdef CONFIG_DRM_DEBUG_PRINT
+ void __drm_printfn_dbg(struct drm_printer *p, struct va_format *vaf);
++#else
++static inline void __drm_printfn_dbg(struct drm_printer *p, struct va_format *vaf) { }
++#endif
+ void __drm_printfn_err(struct drm_printer *p, struct va_format *vaf);
+ void __drm_printfn_line(struct drm_printer *p, struct va_format *vaf);
+ 

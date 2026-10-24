@@ -3,7 +3,7 @@
 if [ -z "$1" ]; then
 
 e="$(echo 'default 6 9 27
-shrtnolock 3 300 4.5
+shrtnolock 2.5 300 3.6
 ext30_T30 9 12 30
 nosleep60_P60 12 15 600
 nolocksleep60_P60 12 600 600
@@ -16,9 +16,9 @@ case "$e" in
 		                 tLock=90
 		                 tSuspend=270
 	;;
-	'shrtnolock'*)     tOff=30
+	'shrtnolock'*)     tOff=25
 		                 tLock=3000
-		                 tSuspend=45
+		                 tSuspend=36
 	;;
 	'ext30'*)          tOff=90
 		                 tLock=120

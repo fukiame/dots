@@ -25,11 +25,11 @@ case "$e" in
 		systemctl hibernate
 		;;
 	lock)
-		swaylock -f
+		swaylock -f &
 		;;
 	screenoff)
 		swayidle timeout 1 'niri msg action power-off-monitors' &
-		swaylock
+		cthulock
 		kill -TERM $!
 		wait
 		;;
